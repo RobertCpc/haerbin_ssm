@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/beans 
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/aop 
+        http://www.springframework.org/schema/aop/spring-aop.xsd
+        http://www.springframework.org/schema/context 
+        http://www.springframework.org/schema/context/spring-context.xsd
+         http://www.springframework.org/schema/mvc 
+        http://www.springframework.org/schema/mvc/spring-mvc.xsd
+        http://www.springframework.org/schema/tx 
+        http://www.springframework.org/schema/tx/spring-tx.xsd"> 
+  
+	
+
+
+	<!-- base-package:用于扫描的包 resource-pattern:扫描的目录，默认值 **/*.calss 默认是级联，（当前包、和所有子包.) 
+		use-default-filters 默认为true @Component, @Repository, @Service, @Controller 
+		作用：Spring容器来管理这些对象（对象的创建） -->
+	<context:component-scan base-package="com.qfjy"></context:component-scan>
+
+
+ 
+	<!-- 第一步 加载jdbc.properties -->
+	<context:property-placeholder location="classpath:jdbc.properties" />
+	
+	<!-- 第二步，配置C3P0数据连接池 -->
+	<!-- 需要数据源 C3P0 -->
+	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource" >
+		<property name="driverClass" value="${jdbc_driver}"></property>
+		<property name="jdbcUrl" value="${jdbc_url}"></property>
+		<property name="password" value="${jdbc_password}"></property>
+		<property name="user" value="${jdbc_user}"></property>
+	</bean>
+	
+
+
+
+   <!--第三步： 集成myBatis -->
+    <!-- 
+在 MyBatis 中，使用 SqlSessionFactoryBuilder创建SqlSessionFactory ，进而来创建 SqlSession。
+得到 session 之后,你可以使用它来执行映射语句,提交或回滚连接,最后,当不再需要它的时候, 你可以关闭 session。 
+
+Mybatis社区自己开发了一个Mybatis-spring用来满足Mybatis用户整合Spring的需求。
+使用 MyBatis-Spring 之后, 会使用SqlSessionFactoryBean来代替SqlSessionFactoryBuilder创建SqlSessionFactory，
+然后可以使用使用sqlSession。
+
+Mybatis-Spring提供了一种直接使用SqlSession的方式（一个实现了SqlSession接口的SqlSessionTemplate实现类）
+	它是线程安全的，可以被多个Dao同时使用；
+	它跟Spring的事务进行了关联，确保当前被使用的SqlSession是一个已经和Spring的事务进行绑定了的，而且它还可以自己管理Session的提交和关闭。
+
+ -->
+    
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+    	<property name="dataSource" ref="dataSource"></property>
+    	<!-- mappers 配置文件映射 -->
+    	<property name="mapperLocations" value="classpath:com/qfjy/dao/*.xml"></property>
+    	<!-- 别名设置   将该包内所有的类定义了别名，别名就是其类名-->
+    	<property name="typeAliasesPackage" value="com.qfjy.bean"></property>
+    </bean>
+    <!-- 配置对应的SqlSession -->
+   <bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate">
+   		<constructor-arg index="0" ref="sqlSessionFactory"></constructor-arg>
+   </bean>
+   <!-- 自动扫描，完成代码Mapper -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.qfjy.dao"></property>
+		<property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"></property>
+	</bean>
+	
+
+    
+	
+	<!-- Spring事务 -->
+	  <!-- 对dataSource 数据源进行事务管理 -->  
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager"  >
+    	<!-- p:dataSource-ref="dataSource" -->
+    	<property name="dataSource" ref="dataSource"></property>
+    </bean>         
+      <!-- 启用对事务注解的支持 -->  
+      <!-- 注意：proxy-target-class属性值决定是基于接口的还是基于类的代理被创建。
+		      如果proxy-target-class 属性值被设置为true，那么基于类的代理将起作用（这时需要cglib库）。
+		      如果proxy-target-class属值被设置为false或者这个属性被省略，那么标准的JDK 基于接口的代理 --> 
+    <tx:annotation-driven transaction-manager="transactionManager" 	proxy-target-class="true" />  
+</beans>
